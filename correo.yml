@@ -1,0 +1,145 @@
+---
+# ejecutar antes para actualizar el repositorio (ansible all -i hosts -m apt --sudo )
+- hosts: funny
+
+  sudo : true
+
+  tasks:
+
+   - name: General | Install Post
+     action: apt pkg={{ item }} state=installed
+     with_items:
+     - postfix
+     - dovecot-imapd
+     - dovecot-pop3d
+
+   - name: General | Install Auth
+     action: apt pkg={{ item }} state=installed
+     with_items:
+     - courier-pop
+     - courier-imap
+   
+   - name: Certificado
+     shell: /usr/bin/openssl req -x509 -newkey rsa:2048 -passout pass:"maraza.com" -subj "/DC=maraza.com/OU=com/CN=postfix" -keyout /etc/ssl/private/postfix.pem -out /etc/ssl/certs/postfix.pem
+   - name: Configuracion de postfix host
+     shell: /usr/sbin/postconf -e 'myhostname = ubuntu-xenial'
+   - name: Configuracion de postfix domain
+     shell: /usr/sbin/postconf -e 'mydomain = maraza.com'
+   - name: Configuracion de postfix origin
+     shell: /usr/sbin/postconf -e 'myorigin = $mydomain'
+   - name: Configuracion de postfix destino
+     shell: /usr/sbin/postconf -e 'mydestination = $myhostname, maraza.com, ubuntu-xenial.maraza.com, localhost.localdomain, localhost'
+   - name: Configuracion de postfix networks
+     shell: /usr/sbin/postconf -e 'mynetworks = 127.0.0.0/8 ,192.168.88.0/24'
+   - name: Configuracion de postfix certificado
+     shell: /usr/sbin/postconf -e smtpd_tls_cert_file=/etc/ssl/certs/postfix.pem
+   - name: Configuracion de postfix certificado privado
+     shell: /usr/sbin/postconf -e smtpd_tls_key_file=/etc/ssl/private/postfix.pem
+   - name: Configuracion de postfix ssl
+     shell: /usr/sbin/postconf -e smtpd_use_tls=yes
+   - name: Configuracion de postfix ssl master
+     shell: /bin/sed -i 's/#  -o syslog_name=postfix\/submission/  -o syslog_name=postfix\/submission/g' /etc/postfix/master.cf
+   - name: Configuracion de postfix ssl smtpd
+     shell: /bin/sed -i 's/#  -o smtpd_tls_security_level=encrypt/  -o smtpd_tls_security_level=encrypt/g' /etc/postfix/master.cf
+   - name: Configuracion de postfix auth
+     shell: /bin/sed -i 's/#  -o smtpd_sasl_auth_enable=yes/  -o smtpd_sasl_auth_enable=yes/g' /etc/postfix/master.cf
+   - name: Configuracion de postfix smtps
+     shell: /bin/sed -i 's/#smtps     inet  n       -       y       -       -       smtpd/smtps     inet  n       -       n       -       -       smtpd/g ' /etc/postfix/master.cf
+   - name: Configuracion de postfix log
+     shell: /bin/sed -i 's/#  -o syslog_name=postfix\/smtps/  -o syslog_name=postfix\/smtps/g' /etc/postfix/master.cf
+   - name: Configuracion de postfix wrappermode
+     shell: /bin/sed -i 's/#  -o smtpd_tls_wrappermode=yes/  -o smtpd_tls_wrappermode=yes/g' /etc/postfix/master.cf
+
+   - name: Configuracion de dovecot certificados
+     shell: /usr/bin/openssl req -x509 -newkey rsa:2048 -passout pass:"maraza.com" -subj "/DC=maraza.com/OU=com/CN=dovecot" -keyout /etc/ssl/private/dovecot.pem -out /etc/ssl/certs/dovecot.pem
+   - name: Configuracion de dovecot protolocolos
+     shell: /bin/echo "protocols = imap pop3" >> /etc/dovecot/dovecot.conf
+   - name: Configuracion de dovecot maildir
+     shell: /bin/sed -i 's/#   mail_location = maildir:~\/Maildir/   mail_location = maildir:~\/Maildir/g' /etc/dovecot/conf.d/10-mail.conf
+   - name: Configuracion de dovecot texto plano auth
+     shell: /bin/sed -i 's/#disable_plaintext_auth = yes/disable_plaintext_auth = yes/g' /etc/dovecot/conf.d/10-auth.conf
+   - name: Configuracion de dovecot auth
+     shell: /bin/sed -i 's/auth_mechanisms = plain/auth_mechanisms = plain login/g' /etc/dovecot/conf.d/10-auth.conf
+   - name: Configuracion de dovecot ssl
+     shell: /bin/sed -i 's/#ssl = yes/ssl = yes/g' /etc/dovecot/conf.d/10-ssl.conf
+   - name: Configuracion de dovecot certificado
+     shell: /bin/sed -i 's/ssl_cert = <\/etc\/dovecot.pem/ssl_cert = <\/etc\/ssl\/certs\/dovecot.pem/g' /etc/dovecot/conf.d/10-ssl.conf
+   - name: Configuracion de dovecot clave privada
+     shell: /bin/sed -i 's/ssl_key = <\/etc\/dovecot\/private\/dovecot.pem/ssl_key = <\/etc\/ssl\/private\/dovecot.pem/g' /etc/dovecot/conf.d/10-ssl.conf
+
+#   - name Activar el servicio de courier
+#     shell: /bin/systemctl enable courier-authdaemon
+#     shell: /bin/systemctl start courier-authdaemon
+
+  handlers:
+   - name: restart postfix
+     service: name=postfix state=restarted
+
+   - name: restart dovecot
+     service: name=dovecot state=restarted
+
+   - name: enable courier-authdaemon
+     service: name=courier-authdaemon state=enabled
+
+   - name: start courier-authdaemon
+     service: name=courier-authdaemon state=restarted
+
+- hosts: funnier
+
+  sudo: true
+
+  tasks:
+
+   - name: General | Install Client
+     action: apt pkg={{ item }} state=installed
+     with_items:
+     - apache2
+     - squirrelmail
+
+   - name: Configuracion de squirrelmail-web
+     shell: /bin/sed -i 's/short_open_tag = Off/short_open_tag = On/g' /etc/php/7.0/apache2/php.ini
+   - name: Configuracion de squirrelmail-web copia a apache
+     shell: /bin/cp /etc/squirrelmail/apache.conf /etc/apache2/sites-available/squirrelmail.conf
+   - name: Configuracion de squirrelmail-web modificacion de sitio web
+     shell: /bin/sed -i 's/#<VirtualHost 1.2.3.4>/<VirtualHost \*:80>/g' /etc/apache2/sites-available/squirrelmail.conf
+   - name: Configuracion de squirrelmail-web ruta de sitio
+     shell: /bin/sed -i 's/#  DocumentRoot \/usr\/share\/squirrelmail/  DocumentRoot \/usr\/share\/squirrelmail/g' /etc/apache2/sites-available/squirrelmail.conf
+   - name: Configuracion de squirrelmail-web nombre del sitio
+     shell: /bin/sed -i 's/#  ServerName webmail.example.com/  ServerName mail.maraza.com/g' /etc/apache2/sites-available/squirrelmail.conf
+   - name: Configuracion de squirrelmail-web cierre
+     shell: /bin/sed -i 's/#<\/VirtualHost>/<\/VirtualHost>/g' /etc/apache2/sites-available/squirrelmail.conf
+   - name: Configuracion de squirrelmail-web habilitar sitio
+     shell: /usr/sbin/a2ensite squirrelmail.conf
+   - name: Configuracion de squirrelmail-web dominio
+     shell: /usr/bin/perl -pi -e "s[$domain                 = trim(implode('', file('/etc/'.(file_exists('/etc/mailname')?'mail':'host').'name')));][$domain                 = maraza.com]g" /etc/squirrelmail/config.php
+   - name: Configuracion de squirrelmail-web direccion del postfix
+     shell: /usr/bin/perl -pi -e "s[$imapServerAddress      = 'localhost';][$imapServerAddress      = '192.168.88.10';]g" /etc/squirrelmail/config.php
+   - name: Configuracion de squirrelmail-web puerto ssl imap
+     shell: /usr/bin/perl -pi -e "s[$imapPort               = 143;][$imapPort               = 993;]g" /etc/squirrelmail/config.php
+   - name: Configuracion de squirrelmail-web direccion smtp server
+     shell: /usr/bin/perl -pi -e "s[$smtpServerAddress      = 'localhost';][$smtpServerAddress      = '192.168.88.10';]g" /etc/squirrelmail/config.php
+   - name: Configuracion de squirrelmail-web puerto smtp
+     shell: /usr/bin/perl -pi -e "s[$smtpPort               = 25;][$smtpPort               = 587;]g" /etc/squirrelmail/config.php
+   - name: Configuracion de squirrelmail-web auth imap
+     shell: /usr/bin/perl -pi -e "s[$imap_server_type       = 'other';][$imap_server_type       = 'courier';]g" /etc/squirrelmail/config.php
+   - name: Configuracion de squirrelmail-web delimitador
+     shell: /usr/bin/perl -pi -e "s[$optional_delimiter     = '.';][$optional_delimiter     = 'detect';]g" /etc/squirrelmail/config.php
+   - name: Configuracion de squirrelmail-web directorio correo
+     shell: /usr/bin/perl -pi -e "s[$default_folder_prefix          = '';][$default_folder_prefix          = 'INBOX.';]g" /etc/squirrelmail/config.php
+   - name: Configuracion de squirrelmail-web folder trash
+     shell: /usr/bin/perl -pi -e "s[$trash_folder                   = 'INBOX.Trash';][$trash_folder                   = 'Trash';]g" /etc/squirrelmail/config.php
+   - name: Configuracion de squirrelmail-web set folder
+     shell: /usr/bin/perl -pi -e "s[$sent_folder                    = 'INBOX.Sent';][$sent_folder                    = 'Sent';]g" /etc/squirrelmail/config.php
+   - name: Configuracion de squirrelmail-web draft folder
+     shell: /usr/bin/perl -pi -e "s[$draft_folder                   = 'INBOX.Drafts';][$draft_folder                   = 'Drafts';]g" /etc/squirrelmail/config.php
+   - name: Configuracion de squirrelmail-web tls imap
+     shell: /usr/bin/perl -pi -e "s[$use_imap_tls = false;][$use_imap_tls = true;]g" /etc/squirrelmail/config.php
+   - name: Configuracion de squirrelmail-web tls smtp
+     shell: /usr/bin/perl -pi -e "s[$use_smtp_tls = false;][$use_smtp_tls = true;]g" /etc/squirrelmail/config.php
+
+   - name: Configuracion en los ficheros de hosts
+     shell: /bin/echo "192.168.88.10\tmail.maraza.com" >> /etc/hosts
+
+  handlers:
+   - name: restart apache2
+     service: name=apache2 state=restarted
