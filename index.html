@@ -1,0 +1,33 @@
+<html>
+	<head>
+		<title>Ansible Correo</title>
+		<h1><center>INSTALACI&Oacute;N DE CORREO CON ANSIBLE</center></h1>
+	</head>
+	</br>
+	<body>		
+		<h3>1.- Instalaci&oacute; de paquetes de correo</h3>
+		<pre>Empezamos actualizando los paquetes de repositorio con <b>ansible all -i hosts -m apt --sudo</b> luego instalamos los paquetes de postfix, dovecot, autenticaci&oacute;n y squirrelmail
+para que los clientes se autentiquen en cada uno de sus equipos teniendo un servidor donde les proporcionara a cada una de los usuarios su cuenta
+
+Para comprobarlo si funciona solo tienes que agregar el la ip de nuestro servidor y nuestro dominio que hemos creado en nuestro sitio web
+para la instalacion no he podido instalarlo todo en bloque ya que me daba problema de independencia y por eso lo he tenido que hacerlo por separado como se ve en el playbook.
+		</pre>
+
+		<h3>1.2.- Configuraci&oacute;n</h3>
+		<pre>Para la configuraci&oacute;n como en la instalaci&oacute;n de postfix te aparece una peque&ntilde;a interfaz para la configuraci&oacute;n de nuestro correo
+nosotros hemos tenido  que agregar el nombre de nuestro dominio el nombre del equipo que sera el servidor, los certificados y en dovecot habilitar los protocolos imap , pop3, 
+ssl el deminio de courier y arrancar el sercicio de courier.
+
+En squirrel pasamos un fichero de configuraci&oacute;n a apache2 en sites-available para que podamos utilizar nuestro nuestro squirrelmail por web, configuramos por que puerto
+quieres que escuche el imap y pop3, luego hacemos un enlace simb&oacute;lico en /var/www/html para que nos pille nuestra pagina web ya que la configuraci&oacute;n no se encuentra
+en /var/www/html. 
+
+Todo esto lo realizamos con el funci&oacute;n shell: en playbook.
+Por ultimo reiniciamos el servicio de todos los paquetes que hemos instalado
+
+Para configurar los equipos clientes solo tenemos que agregar en el fichero host, donde hemos creado por un grupo para el cliente y otro para el sevidor
+declarando ahi todos los equipos que queremos que se le aplique la tarea, a&ntilde;adimos la linea con la ip de el servidor y el nonbre del dominio que hemos creado.
+</pre>
+
+	</body>
+</html>

@@ -18,6 +18,12 @@
      with_items:
      - courier-pop
      - courier-imap
+
+   - name: General | Install correo web
+     action: apt pkg={{ item }} state=installed
+     with_items:
+     - apache2
+     - squirrelmail
    
    - name: Certificado
      shell: /usr/bin/openssl req -x509 -newkey rsa:2048 -passout pass:"maraza.com" -subj "/DC=maraza.com/OU=com/CN=postfix" -keyout /etc/ssl/private/postfix.pem -out /etc/ssl/certs/postfix.pem
@@ -71,31 +77,6 @@
 #     shell: /bin/systemctl enable courier-authdaemon
 #     shell: /bin/systemctl start courier-authdaemon
 
-  handlers:
-   - name: restart postfix
-     service: name=postfix state=restarted
-
-   - name: restart dovecot
-     service: name=dovecot state=restarted
-
-   - name: enable courier-authdaemon
-     service: name=courier-authdaemon state=enabled
-
-   - name: start courier-authdaemon
-     service: name=courier-authdaemon state=restarted
-
-- hosts: funnier
-
-  sudo: true
-
-  tasks:
-
-   - name: General | Install Client
-     action: apt pkg={{ item }} state=installed
-     with_items:
-     - apache2
-     - squirrelmail
-
    - name: Configuracion de squirrelmail-web
      shell: /bin/sed -i 's/short_open_tag = Off/short_open_tag = On/g' /etc/php/7.0/apache2/php.ini
    - name: Configuracion de squirrelmail-web copia a apache
@@ -112,12 +93,12 @@
      shell: /usr/sbin/a2ensite squirrelmail.conf
    - name: Configuracion de squirrelmail-web dominio
      shell: /usr/bin/perl -pi -e "s[$domain                 = trim(implode('', file('/etc/'.(file_exists('/etc/mailname')?'mail':'host').'name')));][$domain                 = maraza.com]g" /etc/squirrelmail/config.php
-   - name: Configuracion de squirrelmail-web direccion del postfix
-     shell: /usr/bin/perl -pi -e "s[$imapServerAddress      = 'localhost';][$imapServerAddress      = '192.168.88.10';]g" /etc/squirrelmail/config.php
+#   - name: Configuracion de squirrelmail-web direccion del postfix
+#     shell: /usr/bin/perl -pi -e "s[$imapServerAddress      = 'localhost';][$imapServerAddress      = '192.168.88.10';]g" /etc/squirrelmail/config.php
    - name: Configuracion de squirrelmail-web puerto ssl imap
      shell: /usr/bin/perl -pi -e "s[$imapPort               = 143;][$imapPort               = 993;]g" /etc/squirrelmail/config.php
-   - name: Configuracion de squirrelmail-web direccion smtp server
-     shell: /usr/bin/perl -pi -e "s[$smtpServerAddress      = 'localhost';][$smtpServerAddress      = '192.168.88.10';]g" /etc/squirrelmail/config.php
+#   - name: Configuracion de squirrelmail-web direccion smtp server
+#     shell: /usr/bin/perl -pi -e "s[$smtpServerAddress      = 'localhost';][$smtpServerAddress      = '192.168.88.10';]g" /etc/squirrelmail/config.php
    - name: Configuracion de squirrelmail-web puerto smtp
      shell: /usr/bin/perl -pi -e "s[$smtpPort               = 25;][$smtpPort               = 587;]g" /etc/squirrelmail/config.php
    - name: Configuracion de squirrelmail-web auth imap
@@ -136,10 +117,31 @@
      shell: /usr/bin/perl -pi -e "s[$use_imap_tls = false;][$use_imap_tls = true;]g" /etc/squirrelmail/config.php
    - name: Configuracion de squirrelmail-web tls smtp
      shell: /usr/bin/perl -pi -e "s[$use_smtp_tls = false;][$use_smtp_tls = true;]g" /etc/squirrelmail/config.php
+   - name: enlace simbolico para enlazarlo en el directorio de mis sitio
+     shell: /bin/ln -s /usr/share/squirrelmail/ /var/www/html/mail2
+
+  handlers:
+   - name: restart postfix
+     service: name=postfix state=restarted
+
+   - name: restart dovecot
+     service: name=dovecot state=restarted
+
+   - name: enable courier-authdaemon
+     service: name=courier-authdaemon state=enabled
+
+   - name: start courier-authdaemon
+     service: name=courier-authdaemon state=restarted
+
+   - name: restart apache2
+     service: name=apache2 state=restarted
+
+- hosts: funnier
+
+  sudo: true
+
+  tasks:
 
    - name: Configuracion en los ficheros de hosts
      shell: /bin/echo "192.168.88.10\tmail.maraza.com" >> /etc/hosts
 
-  handlers:
-   - name: restart apache2
-     service: name=apache2 state=restarted
